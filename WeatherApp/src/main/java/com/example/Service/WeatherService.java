@@ -15,70 +15,58 @@ import java.util.List;
 
 @Service
 public class WeatherService {
-
-    private final String apiKey ="2068715ee6c70f01debfa82701461083";
-    private final String currentWeatherUrl = "https://api.openweathermap.org/data/2.5/weather";
-    private final String forecastUrl = "https://api.openweathermap.org/data/2.5/forecast";
-
-
-    private final RestTemplate restTemplate;
+    private final WeatherApiClient apiClient;
+    private final WeatherResponseParser responseParser;
 
     public WeatherService(RestTemplateBuilder builder) {
-        this.restTemplate = builder.build();
+        this.apiClient = new WeatherApiClient(builder.build());
+        this.responseParser = new WeatherResponseParser();
     }
 
     public WeatherData getCurrentWeather(String city) {
-        String url = currentWeatherUrl + "?q=" + city + "&appid=" + apiKey + "&units=metric";
+        String response = apiClient.fetchCurrentWeather(city);
+        return responseParser.parseCurrentWeather(response, city);
+    }
 
+    public List<WeatherData> get7DayForecast(String city) {
+        String response = apiClient.fetch7DayForecast(city);
+        return responseParser.parse7DayForecast(response, city);
+    }
+}
+
+class WeatherApiClient {
+    private final String apiKey = "2068715ee6c70f01debfa82701461083";
+    private final String currentWeatherUrl = "https://api.openweathermap.org/data/2.5/weather";
+    private final String forecastUrl = "https://api.openweathermap.org/data/2.5/forecast";
+    private final RestTemplate restTemplate;
+
+    public WeatherApiClient(RestTemplate restTemplate) {
+        this.restTemplate = restTemplate;
+    }
+
+    public String fetchCurrentWeather(String city) {
+        String url = currentWeatherUrl + "?q=" + city + "&appid=" + apiKey + "&units=metric";
         try {
             ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
-            return parseWeatherResponse(response.getBody(), city);
+            return response.getBody();
         } catch (Exception e) {
             throw new RuntimeException("API Error: " + e.getMessage());
         }
     }
 
-    public List<WeatherData> get7DayForecast(String city) {
+    public String fetch7DayForecast(String city) {
         String url = forecastUrl + "?q=" + city + "&appid=" + apiKey + "&units=metric";
-
         try {
             ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
-            JSONObject json = new JSONObject(response.getBody());
-            JSONArray list = json.getJSONArray("list");
-
-            List<WeatherData> dailyForecast = new ArrayList<>();
-
-            // Pick roughly 1 entry per day at midday (index: 4, 12, 20, 28, 36...)
-            for (int i = 4; i < list.length() && dailyForecast.size() < 5; i += 8) {
-                JSONObject entry = list.getJSONObject(i);
-                JSONObject main = entry.getJSONObject("main");
-                JSONObject wind = entry.getJSONObject("wind");
-                JSONObject weather = entry.getJSONArray("weather").getJSONObject(0);
-
-                WeatherData data = new WeatherData();
-                data.setCityName(city);
-                data.setTemperature(main.getDouble("temp"));
-                data.setHumidity(main.getInt("humidity"));
-                data.setWindSpeed(wind.getDouble("speed"));
-                data.setDescription(weather.getString("description"));
-
-                long timestamp = entry.getLong("dt");
-                data.setDate(LocalDateTime.ofEpochSecond(timestamp, 0, ZoneOffset.UTC));
-
-                dailyForecast.add(data);
-            }
-
-            return dailyForecast;
-
-        } catch (org.springframework.web.client.HttpClientErrorException.Unauthorized e) {
-            throw new RuntimeException("Invalid API key. Please check your OpenWeatherMap key.");
+            return response.getBody();
         } catch (Exception e) {
             throw new RuntimeException("Error fetching forecast: " + e.getMessage());
         }
     }
+}
 
-
-    private WeatherData parseWeatherResponse(String responseBody, String city) {
+class WeatherResponseParser {
+    public WeatherData parseCurrentWeather(String responseBody, String city) {
         JSONObject json = new JSONObject(responseBody);
         JSONObject main = json.getJSONObject("main");
         JSONObject wind = json.getJSONObject("wind");
@@ -95,28 +83,30 @@ public class WeatherService {
         return data;
     }
 
-    private List<WeatherData> parseForecastResponse(String responseBody, String city) {
+    public List<WeatherData> parse7DayForecast(String responseBody, String city) {
         JSONObject json = new JSONObject(responseBody);
-        JSONArray dailyArray = json.getJSONArray("daily");
+        JSONArray list = json.getJSONArray("list");
+        List<WeatherData> dailyForecast = new ArrayList<>();
 
-        List<WeatherData> forecastList = new ArrayList<>();
-
-        for (int i = 0; i < 7; i++) {
-            JSONObject day = dailyArray.getJSONObject(i);
-            JSONObject temp = day.getJSONObject("temp");
-            JSONObject weather = day.getJSONArray("weather").getJSONObject(0);
+        for (int i = 4; i < list.length() && dailyForecast.size() < 5; i += 8) {
+            JSONObject entry = list.getJSONObject(i);
+            JSONObject main = entry.getJSONObject("main");
+            JSONObject wind = entry.getJSONObject("wind");
+            JSONObject weather = entry.getJSONArray("weather").getJSONObject(0);
 
             WeatherData data = new WeatherData();
             data.setCityName(city);
-            data.setTemperature(temp.getDouble("day"));
-            data.setHumidity(day.getInt("humidity"));
-            data.setWindSpeed(day.getDouble("wind_speed"));
+            data.setTemperature(main.getDouble("temp"));
+            data.setHumidity(main.getInt("humidity"));
+            data.setWindSpeed(wind.getDouble("speed"));
             data.setDescription(weather.getString("description"));
-            data.setDate(LocalDateTime.ofEpochSecond(day.getLong("dt"), 0, ZoneOffset.UTC));
 
-            forecastList.add(data);
+            long timestamp = entry.getLong("dt");
+            data.setDate(LocalDateTime.ofEpochSecond(timestamp, 0, ZoneOffset.UTC));
+
+            dailyForecast.add(data);
         }
 
-        return forecastList;
+        return dailyForecast;
     }
 }
