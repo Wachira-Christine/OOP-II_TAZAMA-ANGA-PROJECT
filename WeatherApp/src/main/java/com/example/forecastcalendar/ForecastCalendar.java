@@ -1,30 +1,30 @@
-package com.example.forecastcalender;
+package com.example.forecastcalendar;
 
 import com.example.model.WeatherData;
-
 import java.time.DayOfWeek;
 import java.util.HashMap;
 import java.util.Map;
 
-public class ForecastCalendar {
+// Implementation class implementing both interfaces
+public class ForecastCalendar implements BasicForecastOperations, AdvancedForecastOperations {
     private final Map<DayOfWeek, WeatherData> forecastData;
 
     public ForecastCalendar() {
         this.forecastData = new HashMap<>();
     }
 
-    // Add forecast data for a specific day
+    @Override
     public void addForecastData(DayOfWeek day, WeatherData data) {
         forecastData.put(day, data);
     }
 
-    // Get forecast for a specific day
+    @Override
     public WeatherData getForecastForDay(DayOfWeek day) {
         return forecastData.get(day);
     }
 
-    // Get all forecasts
+    @Override
     public Map<DayOfWeek, WeatherData> getAllForecasts() {
-        return forecastData;
+        return new HashMap<>(forecastData); // Return a copy to maintain encapsulation
     }
 }
