@@ -15,75 +15,52 @@ import java.util.List;
 
 @Service
 public class WeatherService {
-    private final WeatherApiClient apiClient;
-    private final WeatherResponseParser responseParser;
-
-    public WeatherService(RestTemplateBuilder builder) {
-        this.apiClient = new WeatherApiClient(builder.build());
-        this.responseParser = new WeatherResponseParser();
-    }
-
-    public WeatherData getCurrentWeather(String city) {
-        String response = apiClient.fetchCurrentWeather(city);
-        return responseParser.parseCurrentWeather(response, city);
-    }
-
-    public List<WeatherData> get7DayForecast(String city) {
-        String response = apiClient.fetch7DayForecast(city);
-        return responseParser.parse7DayForecast(response, city);
-    }
-}
-
-class WeatherApiClient {
+    private final RestTemplate restTemplate;
     private final String apiKey = "2068715ee6c70f01debfa82701461083";
     private final String currentWeatherUrl = "https://api.openweathermap.org/data/2.5/weather";
     private final String forecastUrl = "https://api.openweathermap.org/data/2.5/forecast";
-    private final RestTemplate restTemplate;
 
-    public WeatherApiClient(RestTemplate restTemplate) {
-        this.restTemplate = restTemplate;
+    public WeatherService(RestTemplateBuilder builder) {
+        this.restTemplate = builder.build();
     }
 
-    public String fetchCurrentWeather(String city) {
+    public WeatherData getCurrentWeather(String city) {
         String url = currentWeatherUrl + "?q=" + city + "&appid=" + apiKey + "&units=metric";
         try {
             ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
-            return response.getBody();
+            return parseWeatherResponse(response.getBody(), city);
         } catch (Exception e) {
             throw new RuntimeException("API Error: " + e.getMessage());
         }
     }
 
-    public String fetch7DayForecast(String city) {
+    public List<WeatherData> get7DayForecast(String city) {
         String url = forecastUrl + "?q=" + city + "&appid=" + apiKey + "&units=metric";
         try {
             ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
-            return response.getBody();
+            return parseForecastResponse(response.getBody(), city);
         } catch (Exception e) {
             throw new RuntimeException("Error fetching forecast: " + e.getMessage());
         }
     }
-}
 
-class WeatherResponseParser {
-    public WeatherData parseCurrentWeather(String responseBody, String city) {
+    private WeatherData parseWeatherResponse(String responseBody, String city) {
         JSONObject json = new JSONObject(responseBody);
         JSONObject main = json.getJSONObject("main");
         JSONObject wind = json.getJSONObject("wind");
         JSONObject weather = json.getJSONArray("weather").getJSONObject(0);
 
-        WeatherData data = new WeatherData();
-        data.setCityName(city);
-        data.setTemperature(main.getDouble("temp"));
-        data.setHumidity(main.getInt("humidity"));
-        data.setWindSpeed(wind.getDouble("speed"));
-        data.setDescription(weather.getString("description"));
-        data.setDate(LocalDateTime.now());
-
-        return data;
+        return WeatherData.createBasic(
+                main.getDouble("temp"),
+                main.getInt("humidity"),
+                wind.getDouble("speed"),
+                weather.getString("description"),
+                LocalDateTime.now(),
+                city
+        );
     }
 
-    public List<WeatherData> parse7DayForecast(String responseBody, String city) {
+    private List<WeatherData> parseForecastResponse(String responseBody, String city) {
         JSONObject json = new JSONObject(responseBody);
         JSONArray list = json.getJSONArray("list");
         List<WeatherData> dailyForecast = new ArrayList<>();
@@ -93,20 +70,18 @@ class WeatherResponseParser {
             JSONObject main = entry.getJSONObject("main");
             JSONObject wind = entry.getJSONObject("wind");
             JSONObject weather = entry.getJSONArray("weather").getJSONObject(0);
-
-            WeatherData data = new WeatherData();
-            data.setCityName(city);
-            data.setTemperature(main.getDouble("temp"));
-            data.setHumidity(main.getInt("humidity"));
-            data.setWindSpeed(wind.getDouble("speed"));
-            data.setDescription(weather.getString("description"));
-
             long timestamp = entry.getLong("dt");
-            data.setDate(LocalDateTime.ofEpochSecond(timestamp, 0, ZoneOffset.UTC));
 
+            WeatherData data = WeatherData.createBasic(
+                    main.getDouble("temp"),
+                    main.getInt("humidity"),
+                    wind.getDouble("speed"),
+                    weather.getString("description"),
+                    LocalDateTime.ofEpochSecond(timestamp, 0, ZoneOffset.UTC),
+                    city
+            );
             dailyForecast.add(data);
         }
-
         return dailyForecast;
     }
 }

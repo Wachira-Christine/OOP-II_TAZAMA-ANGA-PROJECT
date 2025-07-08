@@ -3,19 +3,16 @@ package com.example.model;
 import java.time.LocalDateTime;
 
 public class WeatherData {
-    private double temperature; // the temp in cels
-    private int humidity;
-    private double windSpeed; // speed in metres per second
-    private String description;
-    private LocalDateTime date;
-    private String cityName;
+    private final double temperature; // in Celsius
+    private final int humidity;
+    private final double windSpeed; // in meters per second
+    private final String description;
+    private final LocalDateTime date;
+    private final String cityName;
 
-    public WeatherData() {
-        // empty constructor
-    }
-
-    // Constructor
-    public WeatherData(double temperature, int humidity, double windSpeed, String description, LocalDateTime date, String cityName) {
+    // Protected constructor for extensibility
+    protected WeatherData(double temperature, int humidity, double windSpeed,
+                          String description, LocalDateTime date, String cityName) {
         this.temperature = temperature;
         this.humidity = humidity;
         this.windSpeed = windSpeed;
@@ -24,81 +21,62 @@ public class WeatherData {
         this.cityName = cityName;
     }
 
-    // Getters and Setters
-    public double getTemperature() {
-        return temperature;
+    // Factory method for basic weather data
+    public static WeatherData createBasic(double temperature, int humidity,
+                                          double windSpeed, String description,
+                                          LocalDateTime date, String cityName) {
+        return new WeatherData(temperature, humidity, windSpeed,
+                description, date, cityName);
     }
 
-    public void setTemperature(double temperature) {
-        this.temperature = temperature;
+    // Getters only - immutable core properties
+    public double getTemperature() {
+        return temperature;
     }
 
     public int getHumidity() {
         return humidity;
     }
 
-    public void setHumidity(int humidity) {
-        this.humidity = humidity;
-    }
-
     public double getWindSpeed() {
         return windSpeed;
-    }
-
-    public void setWindSpeed(double windSpeed) {
-        this.windSpeed = windSpeed;
     }
 
     public String getDescription() {
         return description;
     }
 
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
     public LocalDateTime getDate() {
         return date;
-    }
-
-    public void setDate(LocalDateTime date) {
-        this.date = date;
     }
 
     public String getCityName() {
         return cityName;
     }
 
-    public void setCityName(String cityName) {
-        this.cityName = cityName;
+    // Temperature conversion - can be overridden by subclasses
+    public double getTemperatureInCelsius() {
+        return temperature;
     }
 
-    // Convert temperature to desired unit
-    public double convertTemperature(String unit) {
-        if (unit.equalsIgnoreCase("Fahrenheit")) {
-            return (temperature * 9 / 5) + 32;
-        } else if (unit.equalsIgnoreCase("Celsius")) {
-            return temperature;
-        } else {
-            throw new IllegalArgumentException("Unsupported temperature unit: " + unit);
-        }
+    public double getTemperatureInFahrenheit() {
+        return (temperature * 9 / 5) + 32;
     }
 
-    // Simple utility method to check if rain is likely
-    public boolean isRainLikely() {
+    // Weather condition analysis - can be overridden by subclasses
+    public boolean isPrecipitationLikely() {
         String lowerDesc = description.toLowerCase();
-        return lowerDesc.contains("rain") || lowerDesc.contains("storm") || lowerDesc.contains("shower");
+        return lowerDesc.contains("rain") ||
+                lowerDesc.contains("storm") ||
+                lowerDesc.contains("shower");
     }
 
     @Override
     public String toString() {
-        return "WeatherData{" +
-                "temperature=" + temperature + "°C" +
-                ", humidity=" + humidity + "%" +
-                ", windSpeed=" + windSpeed + " m/s" +
-                ", description='" + description + '\'' +
-                ", date=" + date +
-                ", cityName='" + cityName + '\'' +
-                '}';
+        return String.format(
+                "WeatherData{temperature=%.1f°C, humidity=%d%%, windSpeed=%.1f m/s, " +
+                        "description='%s', date=%s, cityName='%s'}",
+                temperature, humidity, windSpeed, description, date, cityName
+        );
     }
 }
