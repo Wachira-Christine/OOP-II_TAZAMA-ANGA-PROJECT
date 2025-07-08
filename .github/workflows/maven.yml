@@ -19,3 +19,8 @@ jobs:
       - name: Build with Maven
         run: mvn clean install
         working-directory: WeatherApp
+      - name: Upload JAR as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: weatherapp-jar
+          path: WeatherApp/target/*.jar
