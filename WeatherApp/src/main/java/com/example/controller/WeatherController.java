@@ -1,5 +1,7 @@
 package com.example.controller;
 
+import com.example.model.CurrentWeatherData;
+import com.example.model.ForecastWeatherData;
 import com.example.model.WeatherData;
 import com.example.Service.WeatherService;
 import com.example.history.SearchHistory;
@@ -17,32 +19,29 @@ public class WeatherController {
     private final WeatherService weatherService;
     private final SearchHistory searchHistory;
 
-    // Constructor Injection
     public WeatherController(WeatherService weatherService, SearchHistory searchHistory) {
         this.weatherService = weatherService;
         this.searchHistory = searchHistory;
     }
 
     @GetMapping("/weather")
-    public ResponseEntity<WeatherData> getCurrentWeather(@RequestParam String city) {
-        searchHistory.addSearch(city); // Track the search
-        WeatherData data = weatherService.getCurrentWeather(city);
+    public ResponseEntity<CurrentWeatherData> getCurrentWeather(@RequestParam String city) {
+        searchHistory.addSearch(city);
+        CurrentWeatherData data = weatherService.getCurrentWeather(city);
         return ResponseEntity.ok(data);
     }
-
 
     @GetMapping("/search-history")
     public ResponseEntity<List<String>> getSearchHistory() {
         return ResponseEntity.ok(searchHistory.getRecentSearches());
     }
 
-
     @GetMapping("/forecast")
-    public ResponseEntity<Map<String, WeatherData>> getForecast(@RequestParam String city) {
-        List<WeatherData> forecastList = weatherService.get7DayForecast(city);
+    public ResponseEntity<Map<String, ForecastWeatherData>> getForecast(@RequestParam String city) {
+        List<ForecastWeatherData> forecastList = weatherService.get7DayForecast(city);
 
-        Map<String, WeatherData> forecastMap = new LinkedHashMap<>();
-        String[] dayNames = {"Monday", "Tuesday", "Wednesday", "Thursday", "Friday"};
+        Map<String, ForecastWeatherData> forecastMap = new LinkedHashMap<>();
+        String[] dayNames = {"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"};
 
         for (int i = 0; i < forecastList.size() && i < dayNames.length; i++) {
             forecastMap.put(dayNames[i], forecastList.get(i));
@@ -50,5 +49,4 @@ public class WeatherController {
 
         return ResponseEntity.ok(forecastMap);
     }
-
 }

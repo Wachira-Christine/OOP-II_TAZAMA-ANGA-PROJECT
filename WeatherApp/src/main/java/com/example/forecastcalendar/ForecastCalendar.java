@@ -5,26 +5,27 @@ import java.time.DayOfWeek;
 import java.util.HashMap;
 import java.util.Map;
 
-// Implementation class implementing both interfaces
-public class ForecastCalendar implements BasicForecastOperations, AdvancedForecastOperations {
+public class ForecastCalendar {
     private final Map<DayOfWeek, WeatherData> forecastData;
 
     public ForecastCalendar() {
         this.forecastData = new HashMap<>();
     }
 
-    @Override
     public void addForecastData(DayOfWeek day, WeatherData data) {
         forecastData.put(day, data);
     }
 
-    @Override
     public WeatherData getForecastForDay(DayOfWeek day) {
         return forecastData.get(day);
     }
 
-    @Override
-    public Map<DayOfWeek, WeatherData> getAllForecasts() {
-        return new HashMap<>(forecastData); // Return a copy to maintain encapsulation
+    public void printDailyForecast() {
+        forecastData.forEach((day, data) -> {
+            System.out.printf("%s: %s | Severe? %b%n",
+                    day,
+                    data.getDisplayTemperature(),
+                    data.isSevereWeather());
+        });
     }
 }

@@ -1,5 +1,7 @@
 package com.example.Service;
 
+import com.example.model.CurrentWeatherData;
+import com.example.model.ForecastWeatherData;
 import com.example.model.WeatherData;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -24,17 +26,17 @@ public class WeatherService {
         this.restTemplate = builder.build();
     }
 
-    public WeatherData getCurrentWeather(String city) {
+    public CurrentWeatherData getCurrentWeather(String city) {
         String url = currentWeatherUrl + "?q=" + city + "&appid=" + apiKey + "&units=metric";
         try {
             ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
-            return parseWeatherResponse(response.getBody(), city);
+            return parseCurrentWeatherResponse(response.getBody(), city);
         } catch (Exception e) {
             throw new RuntimeException("API Error: " + e.getMessage());
         }
     }
 
-    public List<WeatherData> get7DayForecast(String city) {
+    public List<ForecastWeatherData> get7DayForecast(String city) {
         String url = forecastUrl + "?q=" + city + "&appid=" + apiKey + "&units=metric";
         try {
             ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
@@ -44,43 +46,42 @@ public class WeatherService {
         }
     }
 
-    private WeatherData parseWeatherResponse(String responseBody, String city) {
+    private CurrentWeatherData parseCurrentWeatherResponse(String responseBody, String city) {
         JSONObject json = new JSONObject(responseBody);
         JSONObject main = json.getJSONObject("main");
         JSONObject wind = json.getJSONObject("wind");
         JSONObject weather = json.getJSONArray("weather").getJSONObject(0);
 
-        return WeatherData.createBasic(
+        return new CurrentWeatherData(
                 main.getDouble("temp"),
                 main.getInt("humidity"),
                 wind.getDouble("speed"),
                 weather.getString("description"),
                 LocalDateTime.now(),
-                city
+                city,
+                main.getDouble("feels_like") // Additional feels-like temp
         );
     }
 
-    private List<WeatherData> parseForecastResponse(String responseBody, String city) {
+    private List<ForecastWeatherData> parseForecastResponse(String responseBody, String city) {
         JSONObject json = new JSONObject(responseBody);
         JSONArray list = json.getJSONArray("list");
-        List<WeatherData> dailyForecast = new ArrayList<>();
+        List<ForecastWeatherData> dailyForecast = new ArrayList<>();
 
         for (int i = 4; i < list.length() && dailyForecast.size() < 5; i += 8) {
             JSONObject entry = list.getJSONObject(i);
             JSONObject main = entry.getJSONObject("main");
             JSONObject wind = entry.getJSONObject("wind");
             JSONObject weather = entry.getJSONArray("weather").getJSONObject(0);
-            long timestamp = entry.getLong("dt");
 
-            WeatherData data = WeatherData.createBasic(
+            dailyForecast.add(new ForecastWeatherData(
                     main.getDouble("temp"),
                     main.getInt("humidity"),
                     wind.getDouble("speed"),
                     weather.getString("description"),
-                    LocalDateTime.ofEpochSecond(timestamp, 0, ZoneOffset.UTC),
+                    LocalDateTime.ofEpochSecond(entry.getLong("dt"), 0, ZoneOffset.UTC),
                     city
-            );
-            dailyForecast.add(data);
+            ));
         }
         return dailyForecast;
     }
